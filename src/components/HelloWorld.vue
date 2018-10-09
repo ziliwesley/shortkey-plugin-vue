@@ -37,6 +37,28 @@ export default Vue.extend({
   props: {
     msg: String,
   },
+  mounted() {
+    // Block browser from refreshing
+    this.$shortKey.subscribe(['meta','r'], (evt) => {
+      // tslint:disable-next-line:no-console
+      console.log('catch', evt);
+    })
+
+    this.$shortKey.subscribe(['meta','backspace'], (evt) => {
+      // tslint:disable-next-line:no-console
+      console.log('catch', evt);
+    })
+
+    this.$shortKey.subscribeOnce(['backspace', 'meta'], (evt) => {
+      // tslint:disable-next-line:no-console
+      console.log('catch once', evt);
+    })
+
+    this.$shortKey.subscribe('*', cmb => {
+      // tslint:disable-next-line:no-console
+      console.log(cmb);
+    })
+  },
 });
 </script>
 
