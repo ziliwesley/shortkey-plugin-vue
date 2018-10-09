@@ -1,4 +1,11 @@
-# shortkey-plugin-vue
+Vue Keybinding Plugin Demo
+
+Keybinding plugin: [src/plugins/shortkey.ts](src/plugins/shortkey.ts)
+
+## Todos
+
+- [x] Write and tweaked the plugin, testing everything in console right now...
+- [ ] Add GUI
 
 ## Project setup
 ```
@@ -7,20 +14,20 @@ yarn install
 
 ### Compiles and hot-reloads for development
 ```
-yarn run serve
+yarn serve
 ```
 
 ### Compiles and minifies for production
 ```
-yarn run build
+yarn build
 ```
 
-### Run your tests
+### your tests
 ```
-yarn run test
+yarn test
 ```
 
 ### Lints and fixes files
 ```
-yarn run lint
+yarn lint
 ```

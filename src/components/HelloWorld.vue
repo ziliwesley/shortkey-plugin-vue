@@ -39,25 +39,63 @@ export default Vue.extend({
   },
   mounted() {
     // Block browser from refreshing
-    this.$shortKey.subscribe(['meta','r'], (evt) => {
+    // Can be used for saving file
+    this.$shortKey.subscribe(['cmd','r'], (evt) => {
       // tslint:disable-next-line:no-console
-      console.log('catch', evt);
+      console.log('press cmd+r', evt);
     })
 
-    this.$shortKey.subscribe(['meta','backspace'], (evt) => {
+    // Can be used for saving file
+    this.$shortKey.subscribe(['cmd','s'], (evt) => {
       // tslint:disable-next-line:no-console
-      console.log('catch', evt);
+      console.log('saving', evt);
+    })
+
+    // Block accidentaly close the tab
+    this.$shortKey.subscribe(['cmd','d'], (evt) => {
+      // tslint:disable-next-line:no-console
+      console.log('press cmd+d', evt);
+    })
+
+    // Block accidentaly close the tab
+    this.$shortKey.subscribe(['cmd','c'], (evt) => {
+      // tslint:disable-next-line:no-console
+      console.clear();
+    })
+
+    this.$shortKey.subscribe(['command','backspace'], (evt) => {
+      // tslint:disable-next-line:no-console
+      console.log('press cmd+delete', evt);
     })
 
     this.$shortKey.subscribeOnce(['backspace', 'meta'], (evt) => {
       // tslint:disable-next-line:no-console
-      console.log('catch once', evt);
+      console.log('press cmd+delete once', evt);
     })
 
-    this.$shortKey.subscribe('*', cmb => {
+    this.$shortKey.subscribe(['ctrl', 's'], (evt) => {
+      // tslint:disable-next-line:no-console
+      console.log('press ctrl+s again', evt);
+    }, true)
+
+    this.$shortKey.subscribe('b', cmb => {
       // tslint:disable-next-line:no-console
       console.log(cmb);
     })
+
+    this.$on('shortKey:keydown', (evt: any) => {
+      // tslint:disable-next-line:no-console
+      console.log('keydown', evt);
+    })
+
+    this.$on('shortKey:capture', (evt: any) => {
+      // tslint:disable-next-line:no-console
+      console.log('capture', evt);
+    })
+
+    this.$shortKey.attach()
+
+    // this.$shortKey.unsubscribe(['command', 'backspace']);
   },
 });
 </script>

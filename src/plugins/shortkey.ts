@@ -1,35 +1,49 @@
 import Vue, { VNode } from 'vue';
 
-interface HandlerRef {
-  vnode: VNode;
+type ShortKeyCallback = (resp: CallbackResp) => void;
+type ShortKeyHandler = (
+  keyBindings: string[] | string,
+  handler?: ShortKeyCallback,
+  canRepeat?: boolean,
+  times?: number
+) => void;
+
+interface ShortKeyCombination {
+  raw: string[];
+  modifier: string[];
+  key: string;
+}
+
+interface CallbackResp {
+  combinations: ShortKeyCombination;
+}
+
+interface ShortKeyPluginState {
+  listeners: Set<ShortKeyListener>;
+  componentsListening: Set<Vue>;
+  keyActived: string;
+  modifierActived: Record<string, boolean>;
+}
+
+interface ShortKeyPlugin {
+  subscribe: ShortKeyHandler;
+  subscribeOnce: ShortKeyHandler;
+  unsubscribe: ShortKeyHandler;
+  attach: () => void;
+  getState: () => ShortKeyPluginState;
+}
+
+interface ShortKeyHandlerRef {
+  component: Vue;
   handler: ShortKeyCallback;
   times: number;
 }
 
-interface CallbackResp {
-  keys: string[];
-  keyCodes: string[];
+interface ShortKeyListener {
+  expected: ShortKeyCombination;
+  canRepeat: boolean;
+  handlerRef: ShortKeyHandlerRef;
 }
-
-interface ShortKeyPluginState {
-  keysActived: Set<string>;
-  keyCodesActived: Set<string>;
-  keysListening: Map<string[], HandlerRef>;
-}
-
-interface ShortKeyPlugin {
-  subscribe: VueShortKeyHandler;
-  subscribeOnce: VueShortKeyHandler;
-  unsubscribe: VueShortKeyHandler;
-  getState: () => ShortKeyPluginState;
-}
-
-type ShortKeyCallback = (resp: CallbackResp) => void;
-type VueShortKeyHandler = (
-  keyBindings: string[] | string,
-  handler: ShortKeyCallback,
-  times?: number
-) => void;
 
 declare module 'vue/types/vue' {
   interface Vue {
@@ -38,126 +52,303 @@ declare module 'vue/types/vue' {
 }
 
 export function install(ctor: typeof Vue, options: any) {
-  const keysActived = new Set();
-  const keyCodesActived = new Set<string>();
-  const keysListening: Map<string[], HandlerRef> = new Map();
+  const state: ShortKeyPluginState = {
+    listeners: new Set<ShortKeyListener>(),
+    componentsListening: new Set<Vue>(),
+    keyActived: '',
+    modifierActived: {
+      metaKey: false,
+      altKey: false,
+      ctrlKey: false,
+      shiftKey: false
+    }
+  };
 
-  function didMatchKeybinding(): string[][] {
-    const keybindingsMatched: string[][] = [];
-    for (const combinations of keysListening.keys()) {
-      // tslint:disable-next-line:no-console
-      // console.log('match against', combinations);
-      const match = combinations.every(
-        key => keysActived.has(key) || keyCodesActived.has(key)
-      );
-      if (match) {
-        keybindingsMatched.push(combinations);
+  const keyboardCodePattern = /Key([A-Z])/;
+
+  function parseKeybinding(keys: string[]): ShortKeyCombination {
+    return keys.reduce(
+      (parsed: ShortKeyCombination, key: string): ShortKeyCombination => {
+        const lowerKey = key.toLowerCase();
+        switch (lowerKey) {
+          case 'meta':
+          case 'super':
+          case 'command':
+          case 'cmd':
+            parsed.modifier.push('meta');
+            break;
+          case 'ctrl':
+          case 'control':
+            parsed.modifier.push('ctrl');
+            break;
+          case 'alt':
+          case 'options':
+            parsed.modifier.push('alt');
+            break;
+          case 'shift':
+            parsed.modifier.push('shift');
+            break;
+          case 'del':
+          case 'delete':
+            parsed.key = 'delete';
+            break;
+          default:
+            if (parsed.key !== '') {
+              // tslint:disable-next-line:no-console
+              console.warn(
+                `${JSON.stringify(keys)}: ${
+                  parsed.key
+                } will be replaced by ${lowerKey}`
+              );
+            }
+            parsed.key = lowerKey;
+        }
+
+        return parsed;
+      },
+      {
+        raw: keys,
+        modifier: [],
+        key: ''
+      }
+    );
+  }
+
+  function combineCombination(combination: ShortKeyCombination): string {
+    return [...combination.modifier, combination.key].sort().join(',');
+  }
+
+  function combine(keys: string[]): string {
+    return combineCombination(parseKeybinding(keys));
+  }
+
+  function matchKeybinding(expected: ShortKeyCombination): boolean {
+    return (
+      expected.key === state.keyActived &&
+      expected.modifier.every(
+        modifierKey => state.modifierActived[`${modifierKey}Key`]
+      )
+    );
+  }
+
+  function didMatchKeybinding(): ShortKeyListener[] {
+    const keybindingsMatched: ShortKeyListener[] = [];
+    // Filter through listeners
+    for (const listener of state.listeners) {
+      if (matchKeybinding(listener.expected)) {
+        keybindingsMatched.push(listener);
       }
     }
     return keybindingsMatched;
   }
 
+  // Normalize key of [a-z]
+  function parseKeyboardCode(code: string) {
+    if (keyboardCodePattern.test(code)) {
+      return code.replace(keyboardCodePattern, '$1').toLowerCase();
+    }
+
+    return code.toLowerCase();
+  }
+
   document.addEventListener('keydown', evt => {
-    // tslint:disable-next-line:no-console
-    // console.log('down', {
-    //   key: evt.key,
-    //   code: evt.keyCode
-    // });
-    keysActived.add(evt.key.toLowerCase());
-    keyCodesActived.add(evt.code.toString());
-    // tslint:disable-next-line:no-console
-    // console.log('stack', Array.from(keysActived));
-    // tslint:disable-next-line:no-console
-    // console.log('stack', keysListening);
+    switch (evt.key) {
+      case 'Meta':
+        // Command key pressed
+        state.modifierActived.metaKey = true;
+        break;
+      case 'Win':
+        // Window key pressed
+        state.modifierActived.metaKey = true;
+        break;
+      case 'Alt':
+        // alt/options key pressed
+        state.modifierActived.altKey = true;
+        break;
+      case 'Control':
+        state.modifierActived.ctrlKey = true;
+        break;
+      case 'Shift':
+        state.modifierActived.shiftKey = true;
+        break;
+      default:
+        state.modifierActived = {
+          ...state.modifierActived,
+          metaKey: evt.metaKey,
+          altKey: evt.altKey,
+          ctrlKey: evt.ctrlKey,
+          shiftKey: evt.shiftKey
+        };
+        state.keyActived = evt.code
+          ? parseKeyboardCode(evt.code)
+          : evt.key.toLowerCase();
+        break;
+    }
+
+    state.componentsListening.forEach(component => {
+      // Generic keydown event
+      component.$emit('shortKey:keydown', {
+        key: state.keyActived,
+        ...state.modifierActived,
+        repeat: evt.repeat
+      });
+    });
+
     const keybindingsMatched = didMatchKeybinding();
 
     if (keybindingsMatched.length > 0) {
+      // Block default actions of browser
       evt.preventDefault();
       evt.stopPropagation();
-      keybindingsMatched.forEach((match: string[]) => {
-        // tslint:disable-next-line:no-console
-        console.log('trigger', match);
-        const ref = keysListening.get(match) as HandlerRef;
 
-        ref.handler.call(ref.vnode, {
-          keys: Array.from(keysActived),
-          keyCodes: Array.from(keyCodesActived)
+      keybindingsMatched.forEach((match: ShortKeyListener) => {
+        if (evt.repeat && !match.canRepeat) {
+          // Decide whether short key can be triggered
+          // repeatedly
+          return;
+        }
+
+        const ref = match.handlerRef;
+
+        ref.handler.call(ref.component, {
+          combination: match.expected
+        });
+
+        // Broadcast a match
+        state.componentsListening.forEach(component => {
+          // Generic keydown event
+          component.$emit('shortKey:capture', {
+            expected: match.expected.raw,
+            key: state.keyActived,
+            ...state.modifierActived
+          });
         });
 
         // Count down handler valid counts
+        // ref.times === -1 means Infiniy
         if (ref.times >= 0) {
           ref.times -= 1;
           if (ref.times <= 0) {
             // Deregister handler
-            keysListening.delete(match);
+            state.listeners.delete(match);
           }
         }
       });
-
-      // Clear keys pressed so that handler will not be triggerd again until
-      // corresponding keys are pressed again
-      keysActived.clear();
-      keyCodesActived.clear();
     }
   });
 
   document.addEventListener('keyup', evt => {
     // tslint:disable-next-line:no-console
-    console.log('trigger', evt);
-    keysActived.delete(evt.key);
-    keyCodesActived.delete(evt.code);
+    switch (evt.key) {
+      case 'Meta':
+        // Command key pressed
+        state.modifierActived.metaKey = false;
+        // Other key will not trigger `keyup` while `meta` key is down
+        // So reset them here
+        state.keyActived = '';
+        break;
+      case 'Win':
+        // Window key pressed
+        state.modifierActived.metaKey = false;
+        break;
+      case 'Alt':
+        // alt/options key pressed
+        state.modifierActived.altKey = false;
+        break;
+      case 'Control':
+        state.modifierActived.ctrlKey = false;
+        break;
+      case 'Shift':
+        state.modifierActived.shiftKey = false;
+        break;
+      default:
+        state.modifierActived = {
+          ...state.modifierActived,
+          metaKey: evt.metaKey,
+          altKey: evt.altKey,
+          ctrlKey: evt.ctrlKey,
+          shiftKey: evt.shiftKey
+        };
+        state.keyActived = '';
+        break;
+    }
   });
+
+  function onVNodeAttached(this: Vue) {
+    state.componentsListening.add(this);
+    this.$once('hook:beforeDestroy', () => {
+      // tslint:disable-next-line:no-console
+      console.log('destroy', this);
+      state.componentsListening.delete(this);
+    });
+  }
 
   function onGlobalKeyDown(
     this: Vue,
     keyBinding: string[] | string,
     handler: ShortKeyCallback,
+    canRepeat: boolean = false,
     times: number = -1
   ) {
     const keys = typeof keyBinding === 'string' ? [keyBinding] : keyBinding;
-    keysListening.set(keys, {
-      vnode: this.$vnode,
-      handler,
-      times
+    state.listeners.add({
+      expected: parseKeybinding(keys),
+      canRepeat,
+      handlerRef: {
+        component: this,
+        handler,
+        times
+      }
     });
   }
 
   function onceGlobalKeyDownOnce(
     this: Vue,
     keyBinding: string[] | string,
-    handler: ShortKeyCallback
+    handler: ShortKeyCallback,
+    canRepeat: boolean
   ) {
-    return onGlobalKeyDown.call(this, keyBinding, handler, 1);
+    return onGlobalKeyDown.call(this, keyBinding, handler, canRepeat, 1);
   }
 
   function offGlobalKeyDown(
     keyBinding: string[] | string,
-    handler: ShortKeyCallback
+    handler?: ShortKeyCallback
   ) {
-    // tslint:disable-next-line:no-console
-    console.log('deregister', keyBinding, handler);
     const keys = typeof keyBinding === 'string' ? [keyBinding] : keyBinding;
-    for (const [k, v] of keysListening.entries()) {
+    const pattern = combine(keys);
+    // tslint:disable-next-line:no-console
+    for (const listener of state.listeners) {
       // Match keybinding
-      if (keys.join(',') === k.join(',')) {
-        if (v.handler === handler) {
-          keysListening.delete(k);
-          return;
+      const identity = combineCombination(listener.expected);
+      // tslint:disable-next-line:no-console
+      if (identity === pattern) {
+        // Remove specific listener
+        if (typeof handler === 'function') {
+          if (listener.handlerRef.handler === handler) {
+            state.listeners.delete(listener);
+          }
+        } else {
+          // Remove all listener with same combinations
+          state.listeners.delete(listener);
         }
       }
     }
   }
 
-  ctor.prototype.$shortKey = {
-    subscribe: onGlobalKeyDown,
-    subscribeOnce: onceGlobalKeyDownOnce,
-    unsubscribe: offGlobalKeyDown,
-    getState() {
-      return {
-        keysActived,
-        keyCodesActived,
-        keysListening
-      };
+  Object.defineProperties(ctor.prototype, {
+    $shortKey: {
+      get(this: Vue) {
+        return {
+          subscribe: onGlobalKeyDown.bind(this),
+          subscribeOnce: onceGlobalKeyDownOnce.bind(this),
+          unsubscribe: offGlobalKeyDown.bind(this),
+          attach: onVNodeAttached.bind(this),
+          getState() {
+            return state;
+          }
+        };
+      }
     }
-  };
+  });
 }
