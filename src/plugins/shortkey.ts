@@ -1,6 +1,6 @@
 import Vue, { VNode } from 'vue';
 
-type ShortKeyCallback = (resp: CallbackResp) => void;
+type ShortKeyCallback = (resp: ShortKeyEventResp) => void;
 type ShortKeyHandler = (
   keyBindings: string[] | string,
   handler?: ShortKeyCallback,
@@ -14,8 +14,11 @@ interface ShortKeyCombination {
   key: string;
 }
 
-interface CallbackResp {
-  combinations: ShortKeyCombination;
+interface ShortKeyEventResp {
+  combination?: string[];
+  modifiers: Record<string, boolean>;
+  key: string;
+  repeat?: boolean;
 }
 
 interface ShortKeyPluginState {
@@ -151,6 +154,16 @@ export function install(ctor: typeof Vue, options: any) {
     return code.toLowerCase();
   }
 
+  function broadcast(
+    components: Set<Vue>,
+    evtName: string,
+    evtResp: ShortKeyEventResp
+  ) {
+    components.forEach(comp => {
+      comp.$emit(evtName, evtResp);
+    });
+  }
+
   document.addEventListener('keydown', evt => {
     switch (evt.key) {
       case 'Meta':
@@ -185,13 +198,10 @@ export function install(ctor: typeof Vue, options: any) {
         break;
     }
 
-    state.componentsListening.forEach(component => {
-      // Generic keydown event
-      component.$emit('shortKey:keydown', {
-        key: state.keyActived,
-        ...state.modifierActived,
-        repeat: evt.repeat
-      });
+    broadcast(state.componentsListening, 'shortKey:keydown', {
+      key: state.keyActived,
+      modifiers: state.modifierActived,
+      repeat: evt.repeat
     });
 
     const keybindingsMatched = didMatchKeybinding();
@@ -209,19 +219,19 @@ export function install(ctor: typeof Vue, options: any) {
         }
 
         const ref = match.handlerRef;
+        const evetResp: ShortKeyEventResp = {
+          combination: match.expected.raw,
+          modifiers: state.modifierActived,
+          key: state.keyActived
+        };
 
-        ref.handler.call(ref.component, {
-          combination: match.expected
-        });
+        ref.handler.call(ref.component, evetResp);
 
         // Broadcast a match
-        state.componentsListening.forEach(component => {
-          // Generic keydown event
-          component.$emit('shortKey:capture', {
-            expected: match.expected.raw,
-            key: state.keyActived,
-            ...state.modifierActived
-          });
+        broadcast(state.componentsListening, 'shortKey:capture', {
+          key: state.keyActived,
+          modifiers: state.modifierActived,
+          repeat: evt.repeat
         });
 
         // Count down handler valid counts
@@ -272,6 +282,13 @@ export function install(ctor: typeof Vue, options: any) {
         state.keyActived = '';
         break;
     }
+
+    // Broadcast keyup event
+    broadcast(state.componentsListening, 'shortKey:keyup', {
+      key: state.keyActived,
+      modifiers: state.modifierActived,
+      repeat: evt.repeat
+    });
   });
 
   function onVNodeAttached(this: Vue) {
