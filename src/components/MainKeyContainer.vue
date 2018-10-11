@@ -19,11 +19,11 @@ export default {
 .mainkey-container {
   display: flex;
   justify-content: center;
-  margin-bottom: 32px;
+  margin-bottom: 64px;
 
   .mainkey-item {
-    width: 400px;
-    height: 176px;
+    width: 244px;
+    height: 244px;
     font-size: 32px;
     border: 1px solid #b7b7b7;
     border-radius: 8px;

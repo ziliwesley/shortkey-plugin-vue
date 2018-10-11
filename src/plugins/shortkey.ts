@@ -15,10 +15,15 @@ interface ShortKeyCombination {
 }
 
 interface ShortKeyEventResp {
+  type: string;
   combination?: string[];
   modifiers: Record<string, boolean>;
   key: string;
   repeat?: boolean;
+}
+
+interface ShortKeyBindingEventResp {
+  bindings: string[][];
 }
 
 interface ShortKeyPluginState {
@@ -91,9 +96,24 @@ export function install(ctor: typeof Vue, options: any) {
           case 'shift':
             parsed.modifier.push('shift');
             break;
+          // Aliases
           case 'del':
-          case 'delete':
             parsed.key = 'delete';
+            break;
+          case 'esc':
+            parsed.key = 'escape';
+            break;
+          case 'up':
+            parsed.key = 'arrowup';
+            break;
+          case 'down':
+            parsed.key = 'arrowdown';
+            break;
+          case 'left':
+            parsed.key = 'arrowleft';
+            break;
+          case 'right':
+            parsed.key = 'arrowright';
             break;
           default:
             if (parsed.key !== '') {
@@ -157,13 +177,98 @@ export function install(ctor: typeof Vue, options: any) {
   function broadcast(
     components: Set<Vue>,
     evtName: string,
-    evtResp: ShortKeyEventResp
+    evtResp: ShortKeyEventResp | ShortKeyBindingEventResp
   ) {
     components.forEach(comp => {
       comp.$emit(evtName, evtResp);
     });
   }
 
+  function onComponentAttached(this: Vue) {
+    state.componentsListening.add(this);
+    this.$once('hook:beforeDestroy', () => {
+      // tslint:disable-next-line:no-console
+      console.log('destroy', this);
+      state.componentsListening.delete(this);
+    });
+  }
+
+  function deregisterListener(listener: ShortKeyListener) {
+    state.listeners.delete(listener);
+
+    broadcast(state.componentsListening, 'shortKey:bindingsChange', {
+      bindings: Array.from(state.listeners).map(
+        (item: ShortKeyListener) => item.expected.raw
+      )
+    });
+  }
+
+  function onGlobalKeyDown(
+    this: Vue,
+    keyBinding: string[] | string,
+    handler: ShortKeyCallback,
+    canRepeat: boolean = false,
+    times: number = -1
+  ) {
+    const keys = typeof keyBinding === 'string' ? [keyBinding] : keyBinding;
+    const listener = {
+      expected: parseKeybinding(keys),
+      canRepeat,
+      handlerRef: {
+        component: this,
+        handler,
+        times
+      }
+    };
+    state.listeners.add(listener);
+
+    broadcast(state.componentsListening, 'shortKey:bindingsChange', {
+      bindings: Array.from(state.listeners).map(
+        (item: ShortKeyListener) => item.expected.raw
+      )
+    });
+
+    this.$once('hook:beforeDestroy', () => {
+      // Auto deregister
+      deregisterListener(listener);
+    });
+  }
+
+  function onceGlobalKeyDownOnce(
+    this: Vue,
+    keyBinding: string[] | string,
+    handler: ShortKeyCallback,
+    canRepeat: boolean
+  ) {
+    return onGlobalKeyDown.call(this, keyBinding, handler, canRepeat, 1);
+  }
+
+  function offGlobalKeyDown(
+    keyBinding: string[] | string,
+    handler?: ShortKeyCallback
+  ) {
+    const keys = typeof keyBinding === 'string' ? [keyBinding] : keyBinding;
+    const pattern = combine(keys);
+    // tslint:disable-next-line:no-console
+    for (const listener of state.listeners) {
+      // Match keybinding
+      const identity = combineCombination(listener.expected);
+      // tslint:disable-next-line:no-console
+      if (identity === pattern) {
+        // Remove specific listener
+        if (typeof handler === 'function') {
+          if (listener.handlerRef.handler === handler) {
+            deregisterListener(listener);
+          }
+        } else {
+          // Remove all listener with same combinations
+          deregisterListener(listener);
+        }
+      }
+    }
+  }
+
+  // Register DOM event listeners
   document.addEventListener('keydown', evt => {
     switch (evt.key) {
       case 'Meta':
@@ -199,8 +304,9 @@ export function install(ctor: typeof Vue, options: any) {
     }
 
     broadcast(state.componentsListening, 'shortKey:keydown', {
+      type: 'shortKey:keydown',
       key: state.keyActived,
-      modifiers: state.modifierActived,
+      modifiers: { ...state.modifierActived },
       repeat: evt.repeat
     });
 
@@ -219,20 +325,18 @@ export function install(ctor: typeof Vue, options: any) {
         }
 
         const ref = match.handlerRef;
-        const evetResp: ShortKeyEventResp = {
+        const evtResp: ShortKeyEventResp = {
+          type: 'shortKey:press',
           combination: match.expected.raw,
-          modifiers: state.modifierActived,
-          key: state.keyActived
+          modifiers: { ...state.modifierActived },
+          key: state.keyActived,
+          repeat: evt.repeat
         };
 
-        ref.handler.call(ref.component, evetResp);
+        ref.handler.call(ref.component, evtResp);
 
         // Broadcast a match
-        broadcast(state.componentsListening, 'shortKey:capture', {
-          key: state.keyActived,
-          modifiers: state.modifierActived,
-          repeat: evt.repeat
-        });
+        broadcast(state.componentsListening, 'shortKey:capture', evtResp);
 
         // Count down handler valid counts
         // ref.times === -1 means Infiniy
@@ -240,7 +344,7 @@ export function install(ctor: typeof Vue, options: any) {
           ref.times -= 1;
           if (ref.times <= 0) {
             // Deregister handler
-            state.listeners.delete(match);
+            deregisterListener(match);
           }
         }
       });
@@ -285,74 +389,14 @@ export function install(ctor: typeof Vue, options: any) {
 
     // Broadcast keyup event
     broadcast(state.componentsListening, 'shortKey:keyup', {
+      type: 'shortKey:keyup',
       key: state.keyActived,
-      modifiers: state.modifierActived,
+      modifiers: { ...state.modifierActived },
       repeat: evt.repeat
     });
   });
 
-  function onVNodeAttached(this: Vue) {
-    state.componentsListening.add(this);
-    this.$once('hook:beforeDestroy', () => {
-      // tslint:disable-next-line:no-console
-      console.log('destroy', this);
-      state.componentsListening.delete(this);
-    });
-  }
-
-  function onGlobalKeyDown(
-    this: Vue,
-    keyBinding: string[] | string,
-    handler: ShortKeyCallback,
-    canRepeat: boolean = false,
-    times: number = -1
-  ) {
-    const keys = typeof keyBinding === 'string' ? [keyBinding] : keyBinding;
-    state.listeners.add({
-      expected: parseKeybinding(keys),
-      canRepeat,
-      handlerRef: {
-        component: this,
-        handler,
-        times
-      }
-    });
-  }
-
-  function onceGlobalKeyDownOnce(
-    this: Vue,
-    keyBinding: string[] | string,
-    handler: ShortKeyCallback,
-    canRepeat: boolean
-  ) {
-    return onGlobalKeyDown.call(this, keyBinding, handler, canRepeat, 1);
-  }
-
-  function offGlobalKeyDown(
-    keyBinding: string[] | string,
-    handler?: ShortKeyCallback
-  ) {
-    const keys = typeof keyBinding === 'string' ? [keyBinding] : keyBinding;
-    const pattern = combine(keys);
-    // tslint:disable-next-line:no-console
-    for (const listener of state.listeners) {
-      // Match keybinding
-      const identity = combineCombination(listener.expected);
-      // tslint:disable-next-line:no-console
-      if (identity === pattern) {
-        // Remove specific listener
-        if (typeof handler === 'function') {
-          if (listener.handlerRef.handler === handler) {
-            state.listeners.delete(listener);
-          }
-        } else {
-          // Remove all listener with same combinations
-          state.listeners.delete(listener);
-        }
-      }
-    }
-  }
-
+  // Extend Vue.prototype
   Object.defineProperties(ctor.prototype, {
     $shortKey: {
       get(this: Vue) {
@@ -360,7 +404,7 @@ export function install(ctor: typeof Vue, options: any) {
           subscribe: onGlobalKeyDown.bind(this),
           subscribeOnce: onceGlobalKeyDownOnce.bind(this),
           unsubscribe: offGlobalKeyDown.bind(this),
-          attach: onVNodeAttached.bind(this),
+          attach: onComponentAttached.bind(this),
           getState() {
             return state;
           }

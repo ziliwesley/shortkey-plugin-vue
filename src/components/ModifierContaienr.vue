@@ -40,7 +40,7 @@ export default {
   display: flex;
   justify-content: space-between;
   .modifier-item {
-    width: 180px;
+    width: 160px;
     height: 48px;
     border: 1px solid #efefef;
     border-radius: 8px;

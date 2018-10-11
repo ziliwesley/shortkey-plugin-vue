@@ -3,8 +3,12 @@
 # top-most EditorConfig file
 root = true
 
-# 4 space indentation
+# 2 space indentation
 [*.ts]
+indent_style = space
+indent_size = 2
+
+[*.vue]
 indent_style = space
 indent_size = 2
 

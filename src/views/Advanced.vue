@@ -2,32 +2,35 @@
   <div class="hello">
     <KeybindingInfo>
       <KeybindingItem
-        :active="keybindings.refresh">
-        refresh: cmd + r
+        :active="keybindings.left">
+        left, h
       </KeybindingItem>
       <KeybindingItem
-        :active="keybindings.save">
-        save: cmd + s
+        :active="keybindings.up">
+        up, j
       </KeybindingItem>
       <KeybindingItem
-        :active="keybindings.bookmark">
-        bookmark: cmd + d
+        :active="keybindings.down">
+        down, k
       </KeybindingItem>
       <KeybindingItem
-        :active="keybindings.copy">
-        copy: cmd + c
+        :active="keybindings.right">
+        right, l
       </KeybindingItem>
       <KeybindingItem
-        :active="keybindings.paste">
-        paste: cmd + v
+        :active="keybindings.space">
+        (can repeat) space: {{ count }}
       </KeybindingItem>
       <KeybindingItem
-        :active="keybindings.del">
-        del: cmd + backspace
+        :active="keybindings.esc">
+        Reset counter: esc
       </KeybindingItem>
       <KeybindingItem
-        :active="keybindings.selectAll">
-        select all (one-time use): cmd + a
+        :active="keybindings.advanced">
+        Complex combination: cmd + shift + p
+      </KeybindingItem>
+      <KeybindingItem>
+        Back Home: cmd + h
       </KeybindingItem>
     </KeybindingInfo>
     <MainKeyContainer :main-key="mainKey" />
@@ -48,7 +51,7 @@ import KeybindingInfo from '@/components/KeybindingInfo.vue';
 import KeybindingItem from '@/components/KeybindingItem.vue';
 
 export default Vue.extend({
-  name: 'Home',
+  name: 'About',
   components: {
     MainKeyContainer,
     ModifierContainer,
@@ -68,57 +71,66 @@ export default Vue.extend({
       } as Record<string, any>,
       mainKey: '',
       bindingsSubscribing: [],
+      count: 0,
       keybindings: {
-        refresh: false,
-        save: false,
-        bookmark: false,
-        copy: false,
-        paste: false,
-        del: false
+        left: false,
+        up: false,
+        down: false,
+        right: false,
+        space: false,
+        esc: false,
+        advanced: false
       } as Record<string, any>
     };
   },
   mounted() {
-    // Block browser from refreshing
-    // Can be used for saving file
-    this.$shortKey.subscribe(['cmd', 'r'], evt => {
-      this.keybindings.refresh = true;
+    // h, j, k, l
+    this.$shortKey.subscribe(['h'], evt => {
+      this.keybindings.left = true;
     });
-
-    // Can be used for saving file
-    this.$shortKey.subscribe(['cmd', 's'], evt => {
-      this.keybindings.save = true;
+    this.$shortKey.subscribe(['arrowleft'], evt => {
+      this.keybindings.left = true;
     });
-
-    // Block accidentaly add bookmark
-    this.$shortKey.subscribe(['cmd', 'd'], evt => {
-      this.keybindings.bookmark = true;
+    this.$shortKey.subscribe(['j'], evt => {
+      this.keybindings.up = true;
     });
-
-    this.$shortKey.subscribe(['cmd', 'c'], evt => {
-      this.keybindings.copy = true;
+    this.$shortKey.subscribe(['arrowup'], evt => {
+      this.keybindings.up = true;
     });
-
-    this.$shortKey.subscribe(['cmd', 'v'], evt => {
-      this.keybindings.paste = true;
+    this.$shortKey.subscribe(['k'], evt => {
+      this.keybindings.down = true;
     });
-
-    this.$shortKey.subscribe(['command', 'backspace'], evt => {
-      this.keybindings.del = true;
+    this.$shortKey.subscribe(['arrowdown'], evt => {
+      this.keybindings.down = true;
     });
-
-    this.$shortKey.subscribeOnce(['command', 'a'], evt => {
-      this.keybindings.selectAll = true;
+    this.$shortKey.subscribe(['l'], evt => {
+      this.keybindings.right = true;
+    });
+    this.$shortKey.subscribe(['arrowright'], evt => {
+      this.keybindings.right = true;
     });
 
     this.$shortKey.subscribe(
-      ['ctrl', 's'],
+      ['space'],
       evt => {
-        // tslint:disable-next-line:no-console
-        console.log('press ctrl+s again', evt);
+        this.keybindings.space = true;
+        this.count += 1;
       },
       true
     );
+
+    this.$shortKey.subscribe(['esc'], evt => {
+      this.keybindings.esc = true;
+      this.count = 0;
+    });
+
+    this.$shortKey.subscribe(['cmd', 'shift', 'p'], evt => {
+      this.keybindings.advanced = true;
+    });
+
+    this.$shortKey.subscribe(['command', 'h'], evt => {
+      this.$router.push('/');
+    });
 
     const handleKeybindingsChanged = (evt: any) => {
       this.modifiers = evt.modifiers;
@@ -155,24 +167,5 @@ export default Vue.extend({
     width: 750px;
     margin: 0 auto;
   }
-}
-</style>
-
-
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-h3 {
-  margin: 40px 0 0;
-}
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
 }
 </style>
