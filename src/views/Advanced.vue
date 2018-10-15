@@ -1,44 +1,22 @@
 <template>
   <div class="hello">
     <KeybindingInfo>
-      <KeybindingItem
-        :active="keybindings.left">
-        left, h
-      </KeybindingItem>
-      <KeybindingItem
-        :active="keybindings.up">
-        up, j
-      </KeybindingItem>
-      <KeybindingItem
-        :active="keybindings.down">
-        down, k
-      </KeybindingItem>
-      <KeybindingItem
-        :active="keybindings.right">
-        right, l
-      </KeybindingItem>
-      <KeybindingItem
-        :active="keybindings.space">
-        (can repeat) space: {{ count }}
-      </KeybindingItem>
-      <KeybindingItem
-        :active="keybindings.esc">
-        Reset counter: esc
-      </KeybindingItem>
-      <KeybindingItem
-        :active="keybindings.advanced">
-        Complex combination: cmd + shift + p
-      </KeybindingItem>
-      <KeybindingItem>
-        Back Home: cmd + h
-      </KeybindingItem>
+      <KeybindingItem :active="keybindings.left">left, h</KeybindingItem>
+      <KeybindingItem :active="keybindings.down">down, j</KeybindingItem>
+      <KeybindingItem :active="keybindings.up">up, k</KeybindingItem>
+      <KeybindingItem :active="keybindings.right">right, l</KeybindingItem>
+      <KeybindingItem :active="keybindings.space">(can repeat) space: {{ count }}</KeybindingItem>
+      <KeybindingItem :active="keybindings.esc">Reset counter: esc</KeybindingItem>
+      <KeybindingItem :active="keybindings.advanced">Complex combination: cmd + shift + p</KeybindingItem>
+      <KeybindingItem>Back Home: cmd + h</KeybindingItem>
     </KeybindingInfo>
-    <MainKeyContainer :main-key="mainKey" />
+    <MainKeyContainer :main-key="mainKey"/>
     <ModifierContainer
       :ctrl="modifiers.ctrlKey"
       :shift="modifiers.shiftKey"
       :alt="modifiers.altKey"
-      :meta="modifiers.metaKey" />
+      :meta="modifiers.metaKey"
+    />
   </div>
 </template>
 
@@ -85,32 +63,32 @@ export default Vue.extend({
   },
   mounted() {
     // h, j, k, l
-    this.$shortKey.subscribe(['h'], evt => {
+    this.$keybinding.subscribe(['h'], evt => {
       this.keybindings.left = true;
     });
-    this.$shortKey.subscribe(['arrowleft'], evt => {
+    this.$keybinding.subscribe(['arrowleft'], evt => {
       this.keybindings.left = true;
     });
-    this.$shortKey.subscribe(['j'], evt => {
+    this.$keybinding.subscribe(['k'], evt => {
       this.keybindings.up = true;
     });
-    this.$shortKey.subscribe(['arrowup'], evt => {
+    this.$keybinding.subscribe(['arrowup'], evt => {
       this.keybindings.up = true;
     });
-    this.$shortKey.subscribe(['k'], evt => {
+    this.$keybinding.subscribe(['j'], evt => {
       this.keybindings.down = true;
     });
-    this.$shortKey.subscribe(['arrowdown'], evt => {
+    this.$keybinding.subscribe(['arrowdown'], evt => {
       this.keybindings.down = true;
     });
-    this.$shortKey.subscribe(['l'], evt => {
+    this.$keybinding.subscribe(['l'], evt => {
       this.keybindings.right = true;
     });
-    this.$shortKey.subscribe(['arrowright'], evt => {
+    this.$keybinding.subscribe(['arrowright'], evt => {
       this.keybindings.right = true;
     });
 
-    this.$shortKey.subscribe(
+    this.$keybinding.subscribe(
       ['space'],
       evt => {
         this.keybindings.space = true;
@@ -119,38 +97,42 @@ export default Vue.extend({
       true
     );
 
-    this.$shortKey.subscribe(['esc'], evt => {
+    this.$keybinding.subscribe(['esc'], evt => {
       this.keybindings.esc = true;
       this.count = 0;
     });
 
-    this.$shortKey.subscribe(['cmd', 'shift', 'p'], evt => {
+    this.$keybinding.subscribe(['cmd', 'shift', 'p'], evt => {
       this.keybindings.advanced = true;
     });
 
-    this.$shortKey.subscribe(['command', 'h'], evt => {
+    this.$keybinding.subscribe(['command', 'h'], evt => {
+      this.$router.push('/');
+    });
+
+    this.$keybinding.subscribeOnce(['command', 'left'], evt => {
       this.$router.push('/');
     });
 
     const handleKeybindingsChanged = (evt: any) => {
       this.modifiers = evt.modifiers;
-      this.mainKey = evt.key.toUpperCase();
+      this.mainKey = evt.primary.toUpperCase();
 
-      if (evt.type === 'shortKey:keyup') {
+      if (evt.type === 'keybinding:keyup') {
         for (const key of Object.keys(this.keybindings)) {
           this.keybindings[key] = false;
         }
       }
     };
 
-    this.$on('shortKey:keydown', handleKeybindingsChanged);
-    this.$on('shortKey:keyup', handleKeybindingsChanged);
+    this.$on('keybinding:keydown', handleKeybindingsChanged);
+    this.$on('keybinding:keyup', handleKeybindingsChanged);
 
-    this.$on('shortKey:bindingsChange', (evt: any) => {
+    this.$on('keybinding:bindingsChange', (evt: any) => {
       this.bindingsSubscribing = evt.bindings;
     });
 
-    this.$shortKey.attach();
+    this.$keybinding.attach();
   }
 });
 </script>

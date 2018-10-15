@@ -1,41 +1,21 @@
 <template>
   <div class="hello">
     <KeybindingInfo>
-      <KeybindingItem
-        :active="keybindings.refresh">
-        refresh: cmd + r
-      </KeybindingItem>
-      <KeybindingItem
-        :active="keybindings.save">
-        save: cmd + s
-      </KeybindingItem>
-      <KeybindingItem
-        :active="keybindings.bookmark">
-        bookmark: cmd + d
-      </KeybindingItem>
-      <KeybindingItem
-        :active="keybindings.copy">
-        copy: cmd + c
-      </KeybindingItem>
-      <KeybindingItem
-        :active="keybindings.paste">
-        paste: cmd + v
-      </KeybindingItem>
-      <KeybindingItem
-        :active="keybindings.del">
-        del: cmd + backspace
-      </KeybindingItem>
-      <KeybindingItem
-        :active="keybindings.selectAll">
-        select all (one-time use): cmd + a
-      </KeybindingItem>
+      <KeybindingItem :active="keybindings.refresh">refresh: cmd + r</KeybindingItem>
+      <KeybindingItem :active="keybindings.save">save: cmd + s</KeybindingItem>
+      <KeybindingItem :active="keybindings.bookmark">bookmark: cmd + d</KeybindingItem>
+      <KeybindingItem :active="keybindings.copy">copy: cmd + c</KeybindingItem>
+      <KeybindingItem :active="keybindings.paste">paste: cmd + v</KeybindingItem>
+      <KeybindingItem :active="keybindings.del">del: cmd + backspace</KeybindingItem>
+      <KeybindingItem :active="keybindings.selectAll">select all (one-time use): cmd + a</KeybindingItem>
     </KeybindingInfo>
-    <MainKeyContainer :main-key="mainKey" />
+    <MainKeyContainer :main-key="primary"/>
     <ModifierContainer
       :ctrl="modifiers.ctrlKey"
       :shift="modifiers.shiftKey"
       :alt="modifiers.altKey"
-      :meta="modifiers.metaKey" />
+      :meta="modifiers.metaKey"
+    />
   </div>
 </template>
 
@@ -46,6 +26,7 @@ import ModifierContainer from '@/components/ModifierContaienr.vue';
 import MainKeyContainer from '@/components/MainKeyContainer.vue';
 import KeybindingInfo from '@/components/KeybindingInfo.vue';
 import KeybindingItem from '@/components/KeybindingItem.vue';
+import { KeybindingEvent } from '@/plugins/keybinding/plugin/event/index.d.ts';
 
 export default Vue.extend({
   name: 'Home',
@@ -66,7 +47,7 @@ export default Vue.extend({
         altKey: false,
         metaKey: false
       } as Record<string, any>,
-      mainKey: '',
+      primary: '',
       bindingsSubscribing: [],
       keybindings: {
         refresh: false,
@@ -81,64 +62,59 @@ export default Vue.extend({
   mounted() {
     // Block browser from refreshing
     // Can be used for saving file
-    this.$shortKey.subscribe(['cmd', 'r'], evt => {
+    this.$keybinding.subscribe(['cmd', 'r'], evt => {
       this.keybindings.refresh = true;
     });
 
     // Can be used for saving file
-    this.$shortKey.subscribe(['cmd', 's'], evt => {
+    this.$keybinding.subscribe(['cmd', 's'], evt => {
       this.keybindings.save = true;
     });
 
     // Block accidentaly add bookmark
-    this.$shortKey.subscribe(['cmd', 'd'], evt => {
+    this.$keybinding.subscribe(['cmd', 'd'], evt => {
       this.keybindings.bookmark = true;
     });
 
-    this.$shortKey.subscribe(['cmd', 'c'], evt => {
+    this.$keybinding.subscribe(['cmd', 'c'], evt => {
       this.keybindings.copy = true;
     });
 
-    this.$shortKey.subscribe(['cmd', 'v'], evt => {
+    this.$keybinding.subscribe(['cmd', 'v'], evt => {
       this.keybindings.paste = true;
     });
 
-    this.$shortKey.subscribe(['command', 'backspace'], evt => {
+    this.$keybinding.subscribe(['command', 'backspace'], evt => {
       this.keybindings.del = true;
     });
 
-    this.$shortKey.subscribeOnce(['command', 'a'], evt => {
+    this.$keybinding.subscribeOnce(['command', 'a'], evt => {
       this.keybindings.selectAll = true;
     });
 
-    this.$shortKey.subscribe(
-      ['ctrl', 's'],
-      evt => {
-        // tslint:disable-next-line:no-console
-        console.log('press ctrl+s again', evt);
-      },
-      true
-    );
+    this.$keybinding.subscribeOnce(['command', 'right'], evt => {
+      this.$router.push('/advanced');
+    });
 
-    const handleKeybindingsChanged = (evt: any) => {
+    const handleKeybindingChange = (evt: KeybindingEvent) => {
       this.modifiers = evt.modifiers;
-      this.mainKey = evt.key.toUpperCase();
+      this.primary = evt.primary.toUpperCase();
 
-      if (evt.type === 'shortKey:keyup') {
+      if (evt.type === 'keybinding:keyup') {
         for (const key of Object.keys(this.keybindings)) {
           this.keybindings[key] = false;
         }
       }
     };
 
-    this.$on('shortKey:keydown', handleKeybindingsChanged);
-    this.$on('shortKey:keyup', handleKeybindingsChanged);
+    this.$on('keybinding:keydown', handleKeybindingChange);
+    this.$on('keybinding:keyup', handleKeybindingChange);
 
-    this.$on('shortKey:bindingsChange', (evt: any) => {
+    this.$on('keybinding:bindingsChange', (evt: any) => {
       this.bindingsSubscribing = evt.bindings;
     });
 
-    this.$shortKey.attach();
+    this.$keybinding.attach();
   }
 });
 </script>

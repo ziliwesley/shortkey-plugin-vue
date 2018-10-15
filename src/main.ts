@@ -3,10 +3,10 @@ import App from './App.vue';
 import router from './router';
 import store from './store';
 
-import * as ShortKeyPlugin from './plugins/shortkey';
+import * as KeybindingPlugin from './plugins/keybinding/vue';
 
 Vue.config.productionTip = false;
-Vue.use(ShortKeyPlugin);
+Vue.use(KeybindingPlugin);
 
 new Vue({
   router,

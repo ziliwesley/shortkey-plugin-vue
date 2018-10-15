@@ -1,4 +1,5 @@
 import Vue, { VNode } from 'vue';
+import { ShortKeyEventResp } from './shortkey.d';
 
 type ShortKeyCallback = (resp: ShortKeyEventResp) => void;
 type ShortKeyHandler = (
@@ -12,14 +13,6 @@ interface ShortKeyCombination {
   raw: string[];
   modifier: string[];
   key: string;
-}
-
-interface ShortKeyEventResp {
-  type: string;
-  combination?: string[];
-  modifiers: Record<string, boolean>;
-  key: string;
-  repeat?: boolean;
 }
 
 interface ShortKeyBindingEventResp {

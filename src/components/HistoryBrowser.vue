@@ -2,11 +2,7 @@
   <div class="history-browser">
     <p>Captured:</p>
     <ul class="keybindings">
-      <li
-        v-for="(item, index) in captured"
-        :key="index">
-        {{ item }}
-      </li>
+      <li v-for="(item, index) in captured" :key="index">{{ item }}</li>
     </ul>
   </div>
 </template>
@@ -20,11 +16,11 @@ export default {
     };
   },
   beforeCreate() {
-    this.$on('shortKey:capture', evt => {
+    this.$on('keybinding:capture', evt => {
       this.captured.push(evt.combination.join(' + '));
     });
 
-    this.$shortKey.attach();
+    this.$keybinding.attach();
   }
 };
 </script>

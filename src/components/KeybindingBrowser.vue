@@ -2,11 +2,7 @@
   <div class="keybinding-browser">
     <p>Current Keybindings:</p>
     <ul class="keybindings">
-      <li
-        v-for="(item, index) in bindingsSubscribing"
-        :key="index">
-        {{ item.join(' + ') }}
-      </li>
+      <li v-for="(item, index) in bindingsSubscribing" :key="index">{{ item.join(' + ') }}</li>
     </ul>
   </div>
 </template>
@@ -20,11 +16,11 @@ export default {
     };
   },
   beforeCreate() {
-    this.$on('shortKey:bindingsChange', evt => {
+    this.$on('keybinding:bindingsChange', evt => {
       this.bindingsSubscribing = evt.bindings;
     });
 
-    this.$shortKey.attach();
+    this.$keybinding.attach();
   }
 };
 </script>
