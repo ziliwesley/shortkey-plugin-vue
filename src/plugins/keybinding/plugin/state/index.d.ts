@@ -1,4 +1,5 @@
-import { ModifierKeys } from '../enums';
+import { ModifierKey } from '../enums';
+import { ModifierArray } from '../keybinding/index.d';
 
 /**
  * Consume native keyboard event
@@ -7,7 +8,7 @@ export declare interface NativeEventConsumer {
   /**
    * Store states of modifier keys
    */
-  modifiers: Record<ModifierKeys, boolean>;
+  modifiers: ModifierArray;
   /**
    * Store state of the primary key
    */

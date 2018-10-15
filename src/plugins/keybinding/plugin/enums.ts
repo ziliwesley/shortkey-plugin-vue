@@ -1,11 +1,18 @@
 // Define enum types
 
-// Define all modifier keys
-export enum ModifierKeys {
-  Ctrl = 'ctrlKey',
-  Alt = 'altKey',
-  Shift = 'shiftKey',
-  Meta = 'metaKey'
+/**
+ * All modifier keys alphabetically sorted
+ */
+export enum ModifierKey {
+  Alt,
+  Ctrl,
+  Meta,
+  Shift
+}
+
+export enum KeybindingFormat {
+  Array = 'array',
+  Map = 'map'
 }
 
 // Define all events will be emitted

@@ -1,6 +1,8 @@
 import { NativeEventConsumer, NativeEventConsumerOptions } from './index.d';
 export { attachListeners } from './dom';
+import { updateModifiers } from '../keybinding';
 import { noop } from '../util';
+import { ModifierKey } from '../enums';
 
 // Native keyboard event consumer
 
@@ -31,30 +33,27 @@ export function matchKeydownEvent(
   switch (evt.key) {
     case 'Meta':
       // Command key pressed
-      state.modifiers.metaKey = true;
+      updateModifiers(state.modifiers, ModifierKey.Meta, true);
       break;
     case 'Win':
       // Window key pressed
-      state.modifiers.metaKey = true;
+      updateModifiers(state.modifiers, ModifierKey.Meta, true);
       break;
     case 'Alt':
       // alt/options key pressed
-      state.modifiers.altKey = true;
+      updateModifiers(state.modifiers, ModifierKey.Alt, true);
       break;
     case 'Control':
-      state.modifiers.ctrlKey = true;
+      updateModifiers(state.modifiers, ModifierKey.Ctrl, true);
       break;
     case 'Shift':
-      state.modifiers.shiftKey = true;
+      updateModifiers(state.modifiers, ModifierKey.Shift, true);
       break;
     default:
-      state.modifiers = {
-        ...state.modifiers,
-        metaKey: evt.metaKey,
-        altKey: evt.altKey,
-        ctrlKey: evt.ctrlKey,
-        shiftKey: evt.shiftKey
-      };
+      updateModifiers(state.modifiers, ModifierKey.Meta, evt.metaKey);
+      updateModifiers(state.modifiers, ModifierKey.Alt, evt.altKey);
+      updateModifiers(state.modifiers, ModifierKey.Ctrl, evt.ctrlKey);
+      updateModifiers(state.modifiers, ModifierKey.Shift, evt.shiftKey);
       // Prefer `evt.code` over `evt.key`
       state.primary = evt.code
         ? normalizeCode(evt.code)
@@ -75,33 +74,30 @@ export function matchKeyupEvent(
   switch (evt.key) {
     case 'Meta':
       // Command key released alone
-      state.modifiers.metaKey = false;
+      updateModifiers(state.modifiers, ModifierKey.Meta, false);
       // Other key will not trigger `keyup` while `meta` key is down
       // So reset them here
       state.primary = '';
       break;
     case 'Win':
       // Window key released
-      state.modifiers.metaKey = false;
+      updateModifiers(state.modifiers, ModifierKey.Meta, false);
       break;
     case 'Alt':
       // alt/options key released
-      state.modifiers.altKey = false;
+      updateModifiers(state.modifiers, ModifierKey.Alt, false);
       break;
     case 'Control':
-      state.modifiers.ctrlKey = false;
+      updateModifiers(state.modifiers, ModifierKey.Ctrl, false);
       break;
     case 'Shift':
-      state.modifiers.shiftKey = false;
+      updateModifiers(state.modifiers, ModifierKey.Shift, false);
       break;
     default:
-      state.modifiers = {
-        ...state.modifiers,
-        metaKey: evt.metaKey,
-        altKey: evt.altKey,
-        ctrlKey: evt.ctrlKey,
-        shiftKey: evt.shiftKey
-      };
+      updateModifiers(state.modifiers, ModifierKey.Meta, evt.metaKey);
+      updateModifiers(state.modifiers, ModifierKey.Alt, evt.altKey);
+      updateModifiers(state.modifiers, ModifierKey.Ctrl, evt.ctrlKey);
+      updateModifiers(state.modifiers, ModifierKey.Shift, evt.shiftKey);
       state.primary = '';
       break;
   }
@@ -117,12 +113,7 @@ export default function createNativeEventConsumer({
   afterKeyup = noop
 }: Partial<NativeEventConsumerOptions> = {}): NativeEventConsumer {
   return {
-    modifiers: {
-      metaKey: false,
-      altKey: false,
-      ctrlKey: false,
-      shiftKey: false
-    },
+    modifiers: [false, false, false, false],
     primary: '',
     handleKeydown(this: NativeEventConsumer, evt: KeyboardEvent): void {
       beforeKeydown.call(this, evt);

@@ -1,5 +1,5 @@
 import { EventName } from '../enums';
-import { BindingDeclaration } from '../keybinding/index.d';
+import { BindingDeclaration, ModifierMap } from '../keybinding/index.d';
 
 // Event Body
 
@@ -7,7 +7,7 @@ import { BindingDeclaration } from '../keybinding/index.d';
  * Required fields inside an event body
  */
 export declare interface KeybindingEventCompulsory {
-  modifiers: Record<string, boolean>;
+  modifiers: ModifierMap;
   primary: string;
 }
 

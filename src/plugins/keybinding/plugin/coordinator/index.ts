@@ -20,8 +20,10 @@ export default function createKeybindingCoordinator<T>({
       for (const matcher of this.matchers) {
         const expected = matcher.expected;
         if (
-          expected.primary === state.primary &&
-          expected.modifiers.every(modifier => state.modifiers[modifier])
+          state.primary === expected.primary &&
+          state.modifiers.every(
+            (isActive, index) => expected.modifiers[index] === isActive
+          )
         ) {
           matched.push(matcher);
         }
